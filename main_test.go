@@ -2,8 +2,9 @@ package main
 
 import (
 	"bytes"
-	"strings"
 	"testing"
+
+	"github.com/bazmurphy/go-dependency-injection/cmdlib"
 )
 
 func TestCliTool(t *testing.T) {
@@ -59,15 +60,7 @@ func TestCliTool(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			stdin := strings.NewReader(tc.input)
-			stdout := &bytes.Buffer{}
-			stderr := &bytes.Buffer{}
-
-			io := &CliToolIO{
-				stdin:  stdin,
-				stdout: stdout,
-				stderr: stderr,
-			}
+			io := cmdlib.NewTestIO(tc.input)
 
 			config := &CliToolConfig{
 				Flags: Flags{
@@ -80,12 +73,13 @@ func TestCliTool(t *testing.T) {
 
 			cliTool.Run()
 
-			if stdout.String() != tc.expectedStdout {
-				t.Errorf("Unexpected stdout\nExpected: %q\nGot: %q", tc.expectedStdout, stdout.String())
+			if io.StdoutString() != tc.expectedStdout {
+				t.Errorf("Unexpected stdout\nExpected: %q\nGot: %q", tc.expectedStdout, io.StdoutString())
 			}
 
-			if stderr.String() != tc.expectedStderr {
-				t.Errorf("Unexpected stderr\nExpected: %q\nGot: %q", tc.expectedStderr, stderr.String())
+			buf := io.Stderr.(*bytes.Buffer)
+			if buf.String() != tc.expectedStderr {
+				t.Errorf("Unexpected stderr\nExpected: %q\nGot: %q", tc.expectedStderr, io.Stderr.(*bytes.Buffer).String())
 			}
 		})
 	}

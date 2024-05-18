@@ -2,21 +2,16 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
-	"io"
-	"os"
+	"log"
 	"strings"
+
+	"github.com/bazmurphy/go-dependency-injection/cmdlib"
+	"github.com/jessevdk/go-flags"
 )
 
-type CliToolIO struct {
-	stdin  io.Reader
-	stdout io.Writer
-	stderr io.Writer
-}
-
 type Flags struct {
-	Uppercase bool
+	Uppercase bool `short:"u" long:"uppercase" description:"convert input text to uppercase"`
 }
 
 type CliToolConfig struct {
@@ -25,11 +20,11 @@ type CliToolConfig struct {
 }
 
 type CliTool struct {
-	io     *CliToolIO
+	io     cmdlib.IO
 	config *CliToolConfig
 }
 
-func NewCliTool(io *CliToolIO, config *CliToolConfig) *CliTool {
+func NewCliTool(io cmdlib.IO, config *CliToolConfig) *CliTool {
 	return &CliTool{
 		io:     io,
 		config: config,
@@ -37,15 +32,15 @@ func NewCliTool(io *CliToolIO, config *CliToolConfig) *CliTool {
 }
 
 func (c *CliTool) Run() {
-	fmt.Fprintf(c.io.stdout, "Enter your name: ")
+	fmt.Fprintf(c.io.Stdout(), "Enter your name: ")
 
-	reader := bufio.NewReader(c.io.stdin)
+	reader := bufio.NewReader(c.io.Stdin())
 
 	// reads from the standard input (c.stdin) using the bufio.Reader until it encounters a newline character ('\n').
 	// it blocks execution and waits for the user to enter some text and press the Enter key.
 	inputText, err := reader.ReadString('\n')
 	if err != nil {
-		fmt.Fprintf(c.io.stderr, "(stderr) failed to read the input text")
+		fmt.Fprintf(c.io.Stderr(), "(stderr) failed to read the input text")
 	}
 
 	containsNumbers := false
@@ -66,25 +61,22 @@ func (c *CliTool) Run() {
 	}
 
 	if containsNumbers {
-		fmt.Fprintf(c.io.stderr, "(stderr): BAD (contains numbers): %s", inputText)
+		fmt.Fprintf(c.io.Stderr(), "(stderr): BAD (contains numbers): %s", inputText)
 	} else {
-		fmt.Fprintf(c.io.stdout, "(stdout): GOOD: %s", inputText)
+		fmt.Fprintf(c.io.Stdout(), "(stdout): GOOD: %s", inputText)
 	}
 }
 
 func main() {
 	config := &CliToolConfig{}
 
-	flag.BoolVar(&config.Flags.Uppercase, "u", false, "convert input text to uppercase")
-	flag.Parse()
-
-	config.Args = flag.Args()
-
-	io := &CliToolIO{
-		stdin:  os.Stdin,
-		stdout: os.Stdout,
-		stderr: os.Stderr,
+	var err error
+	config.Args, err = flags.Parse(&config.Flags)
+	if err != nil {
+		log.Fatalf("Failed to parse flags: %v", err)
 	}
+
+	io := cmdlib.NewIO()
 
 	cliTool := NewCliTool(io, config)
 
